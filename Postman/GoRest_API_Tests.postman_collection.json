@@ -1,0 +1,577 @@
+{
+  "info": {
+    "_postman_id": "3d2ee362-79df-4b69-97e0-28edddc90ac0",
+    "name": "GoRest_API_Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "User_Lifecycle",
+      "item": [
+        {
+          "name": "creating_new_user",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "id": "4408ed26-3fa4-433b-8f47-09c1bbc4424e",
+                "exec": [
+                  "const timestamp = new Date().getTime();// генерация уникального значения \r",
+                  "const randomId = Math.floor(Math.random() * 1000);//случайное число, дополнительный элемент уникальности \r",
+                  "const uniqueEmail = `user_${timestamp}_${randomId}@testmail.com`;\r",
+                  "\r",
+                  "// рандом пол статус\r",
+                  "const genders = [\"male\", \"female\"];\r",
+                  "const statuses = [\"active\", \"inactive\"];\r",
+                  "function getRandomElement(array) {\r",
+                  "    return array[Math.floor(Math.random() * array.length)];\r",
+                  "}\r",
+                  "var randomGender = getRandomElement(genders);\r",
+                  "var randomStatus = getRandomElement(statuses);\r",
+                  "\r",
+                  "// сохранение с генерированных данных в переменные\r",
+                  "pm.variables.set(\"testUserName\", `Test User ${timestamp}`);\r",
+                  "pm.variables.set(\"testUserEmail\", uniqueEmail);\r",
+                  "\r",
+                  "pm.variables.set(\"testUserGender\", randomGender);\r",
+                  "pm.variables.set(\"testUserStatus\", randomStatus);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "id": "efb6d5e5-e0fe-4e86-9d2a-c25e6b56388c",
+                "exec": [
+                  "pm.test(\"Status code is 201 Created\", function () {\r",
+                  "    pm.response.to.have.status(201);\r",
+                  "});\r",
+                  "\r",
+                  "// проверка структуры ответа\r",
+                  "pm.test(\"Response correct schema\", function () {\r",
+                  "    const schema = {\r",
+                  "        type: \"object\",\r",
+                  "        properties: {\r",
+                  "            id: { type: \"number\" },\r",
+                  "            name: { type: \"string\" },\r",
+                  "            email: { type: \"string\" },\r",
+                  "            gender: { enum: [\"male\", \"female\"] },\r",
+                  "            status: { enum: [\"active\", \"inactive\"] }\r",
+                  "        },\r",
+                  "        required: [\"id\", \"name\", \"email\", \"gender\", \"status\"] // все поля обязательны\r",
+                  "    };\r",
+                  "    pm.response.to.have.jsonSchema(schema);\r",
+                  "});\r",
+                  "\r",
+                  "const responseData = pm.response.json(); // json в объект\r",
+                  "pm.collectionVariables.set(\"createdUserId\", responseData.id);\r",
+                  "pm.collectionVariables.set(\"createdUserName\", responseData.name);\r",
+                  "pm.collectionVariables.set(\"createdUserEmail\", responseData.email);\r",
+                  "pm.collectionVariables.set(\"createdUserGender\", responseData.gender);\r",
+                  "pm.collectionVariables.set(\"initialUserStatus\", responseData.status);\r",
+                  "\r",
+                  "\r",
+                  "\r",
+                  "console.log(\"Created user with ID: ${responseData.id}\");"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "id": "a58ec45f-8ce5-49c5-8315-976dc8bc2494",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{Token}}",
+                "type": "text",
+                "uuid": "3404f95a-0039-47e7-8b45-92999e115536"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"name\": \"{{testUserName}}\",\r\n    \"email\": \"{{testUserEmail}}\",\r\n    \"gender\": \"{{testUserGender}}\",\r\n    \"status\": \"{{testUserStatus}}\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{Url}}/users",
+              "host": [
+                "{{Url}}"
+              ],
+              "path": [
+                "users"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "user_information",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "id": "3ca77250-6afb-4e76-bc46-a7d4f976b34f",
+                "exec": [
+                  "console.log(\"Looking for user with ID:\", pm.collectionVariables.get(\"createdUserId\"));"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "id": "b7964bdf-9dd0-4a45-a185-1a0a85f7bada",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK\", function () {\r",
+                  "    pm.response.to.have.status(200);\r",
+                  "});\r",
+                  "\r",
+                  "// в ответе пришел именно тот пользователь\r",
+                  "pm.test(\"Retrieved user ID\", function () {\r",
+                  "    const responseData = pm.response.json();\r",
+                  "    const createdUserId = pm.collectionVariables.get(\"createdUserId\");\r",
+                  "    pm.expect(responseData.id).to.eql(Number(createdUserId));// == id, риведенин к Number\r",
+                  "});\r",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "id": "5c730a03-b479-4854-839e-cd971244a7d7",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{Token}}",
+                "type": "text",
+                "uuid": "86681cc9-c3fd-4738-a1e7-9254fafc3ca0"
+              }
+            ],
+            "url": {
+              "raw": "{{Url}}/users/{{createdUserId}}",
+              "host": [
+                "{{Url}}"
+              ],
+              "path": [
+                "users",
+                "{{createdUserId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "changing_user_information",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "id": "ffa89624-b16f-4ba0-bce9-33acf0eb15b9",
+                "exec": [
+                  "//текущий статус\r",
+                  "const currentStatus = pm.collectionVariables.get(\"initialUserStatus\");\r",
+                  "\r",
+                  "// замена\r",
+                  "const newStatus = currentStatus === \"active\" ? \"inactive\" : \"active\";\r",
+                  "\r",
+                  "pm.variables.set(\"newStatus\", newStatus);\r",
+                  "pm.collectionVariables.set(\"expectedStatusAfterUpdate\", newStatus);\r",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "id": "59982219-deaf-4491-b742-0944d1527f67",
+                "exec": [
+                  "pm.test(\"Status code is 200 OK on update\", function () {\r",
+                  "    pm.response.to.have.status(200);\r",
+                  "});\r",
+                  "\r",
+                  "// статус изменился\r",
+                  "pm.test(\"Status updated\", function () {\r",
+                  "    const responseData = pm.response.json();\r",
+                  "    const expectedStatus = pm.variables.get(\"newStatus\");\r",
+                  "    pm.expect(responseData.status).to.eql(expectedStatus);\r",
+                  "});\r",
+                  "\r",
+                  "// остальные поля не изменились\r",
+                  "pm.test(\"Remaining fields remain unchanged\", function () {\r",
+                  "    const responseData = pm.response.json();\r",
+                  "    const originalName = pm.collectionVariables.get(\"createdUserName\");\r",
+                  "    const originalEmail = pm.collectionVariables.get(\"createdUserEmail\");\r",
+                  "    const originalGender = pm.collectionVariables.get(\"createdUserGender\");\r",
+                  "\r",
+                  "    pm.expect(responseData.name).to.eql(originalName);\r",
+                  "    pm.expect(responseData.email).to.eql(originalEmail);\r",
+                  "    pm.expect(responseData.gender).to.eql(originalGender);\r",
+                  "    pm.expect(responseData.id).to.eql(Number(pm.collectionVariables.get(\"createdUserId\")));\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "id": "3454a699-6f39-404b-a2dd-a577b89a7f16",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{Token}}",
+                "type": "text",
+                "uuid": "5beaff82-2015-4ba7-8127-937ab7900f50"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"status\": \"{{newStatus}}\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{Url}}/users/{{createdUserId}}",
+              "host": [
+                "{{Url}}"
+              ],
+              "path": [
+                "users",
+                "{{createdUserId}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "create_user_post",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "id": "2746d67c-7d69-4a33-a4c7-ce3871881995",
+                "exec": [
+                  "const timestamp = new Date().getTime();// метка\r",
+                  "\r",
+                  "const postTitle = `Test Post Title ${timestamp}`;\r",
+                  "const postBody = `This is the body of the test post created at ${timestamp}. It is unique.`;\r",
+                  "\r",
+                  "pm.variables.set(\"postTitle\", postTitle);\r",
+                  "pm.variables.set(\"postBody\", postBody);\r",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "id": "4dc3f602-f1b7-4d58-8566-e9551de95e88",
+                "exec": [
+                  "pm.test(\"Status code is 201 Created for post\", function () {\r",
+                  "    pm.response.to.have.status(201);\r",
+                  "});\r",
+                  "\r",
+                  "// в ответе \r",
+                  "pm.test(\"Post response has correct\", function () {\r",
+                  "    const responseData = pm.response.json();\r",
+                  "    pm.expect(responseData).to.have.all.keys('id', 'user_id', 'title', 'body');\r",
+                  "    pm.expect(typeof responseData.id).to.eql('number');\r",
+                  "    pm.expect(typeof responseData.title).to.eql('string');\r",
+                  "});\r",
+                  "\r",
+                  "//пост от пользователя\r",
+                  "pm.test(\"Post from user\", function () {\r",
+                  "    const responseData = pm.response.json();\r",
+                  "    const userId = pm.collectionVariables.get(\"createdUserId\");\r",
+                  "\r",
+                  "    pm.expect(responseData.user_id).to.eql(Number(userId));\r",
+                  "});\r",
+                  "\r",
+                  "pm.test(\"Save created post ID\", function () {\r",
+                  "    const responseData = pm.response.json();\r",
+                  "    pm.collectionVariables.set(\"createdPostId\", responseData.id);\r",
+                  "    console.log(`Created post ID: ${responseData.id}`);\r",
+                  "});"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "id": "a816b0f2-8d84-4b91-873f-2224bf80f7a7",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{Token}}",
+                "type": "text",
+                "uuid": "cb2529a9-0112-436e-87fa-23c763d9088d"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\r\n    \"title\": \"{{postTitle}}\",\r\n    \"body\": \"{{postBody}}\"\r\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{Url}}/users/{{createdUserId}}/posts",
+              "host": [
+                "{{Url}}"
+              ],
+              "path": [
+                "users",
+                "{{createdUserId}}",
+                "posts"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "user_extension",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "id": "b4f6a5c7-a935-4ed1-9213-bc71619412c8",
+                "exec": [
+                  "const userId = pm.collectionVariables.get(\"createdUserId\");\r",
+                  "console.log(`Starting cleanup: deleting user with ID: ${userId}`);"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "id": "5cafd708-2087-4c95-8079-fbd31675b6b3",
+                "exec": [
+                  "pm.test(\"Status code is 204 No Content\", function () {\r",
+                  "    pm.response.to.have.status(204);\r",
+                  "});\r",
+                  "\r",
+                  "// тело ответа пустое\r",
+                  "pm.test(\"Response body is empty\", function () {\r",
+                  "    pm.response.to.have.body(\"\");\r",
+                  "});\r",
+                  ""
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "id": "f5fac1fa-06d1-43e6-8f70-ddb916447b06",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{Token}}",
+                "type": "text",
+                "uuid": "c8269dcb-35a0-4e84-8f46-47f8f6099b9b"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{Url}}/users/{{createdUserId}}",
+              "host": [
+                "{{Url}}"
+              ],
+              "path": [
+                "users",
+                "{{createdUserId}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "id": "5a533c05-3b85-41da-87b0-8e8db90e8487"
+    },
+    {
+      "name": "changing_user_information",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "id": "ffa89624-b16f-4ba0-bce9-33acf0eb15b9",
+            "exec": [
+              "//текущий статус\r",
+              "const currentStatus = pm.collectionVariables.get(\"initialUserStatus\");\r",
+              "\r",
+              "// замена\r",
+              "const newStatus = currentStatus === \"active\" ? \"inactive\" : \"active\";\r",
+              "\r",
+              "pm.variables.set(\"newStatus\", newStatus);\r",
+              "pm.collectionVariables.set(\"expectedStatusAfterUpdate\", newStatus);\r",
+              ""
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "id": "59982219-deaf-4491-b742-0944d1527f67",
+            "exec": [
+              "pm.test(\"Status code is 200 OK on update\", function () {\r",
+              "    pm.response.to.have.status(200);\r",
+              "});\r",
+              "\r",
+              "// статус изменился\r",
+              "pm.test(\"Status updated\", function () {\r",
+              "    const responseData = pm.response.json();\r",
+              "    const expectedStatus = pm.variables.get(\"newStatus\");\r",
+              "    pm.expect(responseData.status).to.eql(expectedStatus);\r",
+              "});\r",
+              "\r",
+              "// остальные поля не изменились\r",
+              "pm.test(\"Remaining fields remain unchanged\", function () {\r",
+              "    const responseData = pm.response.json();\r",
+              "    const originalName = pm.collectionVariables.get(\"createdUserName\");\r",
+              "    const originalEmail = pm.collectionVariables.get(\"createdUserEmail\");\r",
+              "    const originalGender = pm.collectionVariables.get(\"createdUserGender\");\r",
+              "\r",
+              "    pm.expect(responseData.name).to.eql(originalName);\r",
+              "    pm.expect(responseData.email).to.eql(originalEmail);\r",
+              "    pm.expect(responseData.gender).to.eql(originalGender);\r",
+              "    pm.expect(responseData.id).to.eql(Number(pm.collectionVariables.get(\"createdUserId\")));\r",
+              "});"
+            ],
+            "type": "text/javascript",
+            "packages": {},
+            "requests": {}
+          }
+        }
+      ],
+      "id": "3454a699-6f39-404b-a2dd-a577b89a7f16",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{Token}}",
+            "type": "text",
+            "uuid": "5beaff82-2015-4ba7-8127-937ab7900f50"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n    \"status\": \"{{newStatus}}\"\r\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "{{Url}}/users/{{createdUserId}}",
+          "host": [
+            "{{Url}}"
+          ],
+          "path": [
+            "users",
+            "{{createdUserId}}"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "id": "b73156f0-7fa6-41fe-a56d-dc9cdc9a0744",
+      "key": "Token",
+      "value": "55119e328325d6998eb7a9b143aa24a009c64f5a4b6fc38f3adc1cc303b43e73"
+    },
+    {
+      "id": "a26ee7ce-262f-46a4-b12b-686666de6841",
+      "key": "Url",
+      "value": "https://gorest.co.in/public/v2"
+    },
+    {
+      "id": "7dc30480-18ff-45a0-b5de-6277bdc9a794",
+      "key": "createdUserId",
+      "value": ""
+    },
+    {
+      "id": "ec833072-112b-453c-aa30-261c5bf42d9d",
+      "key": "createdUserEmail",
+      "value": ""
+    },
+    {
+      "id": "0529d4e0-fc83-455c-a43d-6621a80e3861",
+      "key": "createdUserName",
+      "value": ""
+    },
+    {
+      "id": "1c5d1f7f-5140-4da5-8848-2621bc4c75a4",
+      "key": "createdUserGender",
+      "value": ""
+    },
+    {
+      "id": "4e06b57b-0d0e-4923-85ff-4aaab385704f",
+      "key": "initialUserStatus",
+      "value": ""
+    },
+    {
+      "id": "2e71d5c1-e969-4bca-9bc8-ee8f43cc9afb",
+      "key": "expectedStatusAfterUpdate",
+      "value": ""
+    },
+    {
+      "id": "d7336e92-5b9e-4043-b7b4-94d5b2560e00",
+      "key": "createdPostId",
+      "value": "",
+      "type": "default"
+    }
+  ]
+}
